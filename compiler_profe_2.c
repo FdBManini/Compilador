@@ -16,6 +16,8 @@ typedef enum
     ESCRIBIR,
     ID,
     CONSTANTE,
+    CONSTANTE_REAL,
+    CONSTANTE_CARACTER,
     PARENIZQUIERDO,
     PARENDERECHO,
     PUNTOYCOMA,
@@ -24,16 +26,32 @@ typedef enum
     SUMA,
     RESTA,
     FDT,
-    ERRORLEXICO
+    ERRORLEXICO,
+    SI,
+    ENTONCES,
+    SINO,
+    FIN_SI,
+    MIENTRAS,
+    HACER,
+    FIN_MIENTRAS,
+    REPETIR,
+    HASTA,
+    TIPO_ENTERO,
+    TIPO_REAL,
+    TIPO_CARACTER
 } TOKEN;
 typedef struct
 {
     char identifi[TAMLEX];
     TOKEN t;
+    char tipo[10]; // entera, real o caracter
     /* t=0, 1, 2, 3 Palabra Reservada, t=ID=4 Identificador */
 } RegTS;
 
-RegTS TS[1000] = {{"inicio", INICIO}, {"fin", FIN}, {"leer", LEER}, {"escribir", ESCRIBIR}, {"$", 99}};
+RegTS TS[1000] = {{"inicio", INICIO, ""}, {"fin", FIN, ""}, {"leer", LEER, ""}, {"escribir", ESCRIBIR, ""}, {"si", SI, ""}, 
+                 {"entonces", ENTONCES, ""}, {"sino", SINO, ""}, {"finsi", FIN_SI, ""}, {"mientras", MIENTRAS, ""},
+                 {"hacer", HACER, ""}, {"finmientras", FIN_MIENTRAS, ""}, {"repetir", REPETIR, ""}, {"hasta", HASTA, ""},
+                 {"entero", TIPO_ENTERO, ""}, {"real", TIPO_REAL, ""}, {"caracter", TIPO_CARACTER, ""}, {"$", 99, ""}};
 
 typedef struct
 {
@@ -130,6 +148,7 @@ void Programa(void)
     /* <programa> -> #comenzar INICIO <listaSentencias> FIN */
     Comenzar(); // invocacion a las rutinas semanticas, en la gramatica se coloca con #
     Match(INICIO);
+    ListaDeclaraciones();
     ListaSentencias();
     Match(FIN);
 }
@@ -144,8 +163,12 @@ void ListaSentencias(void)
         case ID:
         case LEER:
         case ESCRIBIR:
+        case SI:
+        case MIENTRAS:
+        case REPETIR:
             Sentencia();
             break;
+
         default:
             return;
         }
@@ -180,10 +203,88 @@ void Sentencia(void)
         Match(PARENDERECHO);
         Match(PUNTOYCOMA);
         break;
+
+    case SI:
+    /* <sentencia> -> SI <expresion> ENTONCES <listaSentencias> [SINO <listaSentencias>] FIN_SI */
+        Match(SI);
+        Expresion(&der);
+        Match(ENTONCES);
+        ListaSentencias();
+        if(ProximoToken() == SINO){
+            Match(SINO);
+            ListaSentencias();
+        }
+        Match(FIN_SI);
+        break;
+
+
+    case MIENTRAS:
+    /* <sentencia> -> MIENTRAS <expresion> HACER <listaSentencias> FIN_MIENTRAS */
+        Match(MIENTRAS);
+        Expresion(&der);
+        Match(HACER);
+        ListaSentencias();
+        Match(FIN_MIENTRAS);
+        break;
+
+
+    case REPETIR:
+    /* <sentencia> -> REPETIR <listaSentencias> HASTA <expresion> ; */
+        Match(REPETIR);
+        ListaSentencias();
+        Match(HASTA);
+        Expresion(&der);
+        Match(PUNTOYCOMA);
+        break;
+    
     default:
         return;
     }
 }
+
+void ListaDeclaraciones(void) {
+    /* <listaDeclaraciones> -> {<declaracion>} */
+    while (1) {
+        switch (ProximoToken()) {
+            case TIPO_ENTERO:
+            case TIPO_REAL:
+            case TIPO_CARACTER:
+                Declaracion();
+                break;
+            default:
+                return;
+        }
+    }
+}
+
+void Declaracion(void) {
+    TOKEN tipo = ProximoToken();
+    char tipoStr[10];
+
+    if(tipo == TIPO_ENTERO) strcpy(tipoStr, "Entera");
+    else if(tipo == TIPO_REAL) strcpy(tipoStr, "Real");
+    else if(tipo == TIPO_CARACTER) strcpy(tipoStr, "Caracter");
+    else {
+        ErrorSintactico();
+        return;
+    }
+    Match(tipo);
+    ListaIdentificadoresConTipo(tipoStr);
+    Match(PUNTOYCOMA);
+}
+
+
+void ListaIdentificadoresConTipo(char *tipo){
+    REG_EXPRESION reg;
+    Identificador(&reg);
+    ColocarConTipo(reg.nombre, TS, tipo);
+    while(ProximoToken() == COMA){
+        Match(COMA);
+        Identificador(&reg);
+        ColocarConTipo(reg.nombre, TS, tipo);
+    }
+}
+
 void ListaIdentificadores(void)
 {
     /* <listaIdentificadores> -> <identificador> #leer_id {COMA <identificador> #leer_id} */
@@ -243,8 +344,10 @@ void Primaria(REG_EXPRESION *presul)
         Identificador(presul);
         break;
     case CONSTANTE:
+    case CONSTANTE_REAL:
+    case CONSTANTE_CARACTER:
         /* <primaria> -> CONSTANTE #procesar_cte */
-        Match(CONSTANTE);
+        Match(tok);
         *presul = ProcesarCte();
         break;
     case PARENIZQUIERDO:
@@ -274,9 +377,15 @@ REG_EXPRESION ProcesarCte(void)
 {
     /* Convierte cadena que representa numero a numero entero y construye un registro semantico */
     REG_EXPRESION reg;
-    reg.clase = CONSTANTE;
     strcpy(reg.nombre, buffer);
-    sscanf(buffer, "%d", &reg.valor);
+
+    if(strchr(buffer, '.')){
+        reg.clase = CONSTANTE_REAL;
+    } else if(buffer[0] == '\'' && buffer[strlen(buffer)-1] == '\''){
+        reg.clase = CONSTANTE_CARACTER;
+    } else{
+        reg.clase = CONSTANTE;
+    }
     return reg;
 }
 
@@ -295,15 +404,34 @@ char *ProcesarOp(void)
     /* Declara OP y construye el correspondiente registro semantico */
     return buffer;
 };
-void Leer(REG_EXPRESION in)
-{
+void Leer(REG_EXPRESION in){
+
+    int i = 0;
+    while(strcmp("$", TS[i].identifi)) {
+        if(strcmp(in.nombre, TS[i].identifi) == 0){
+            Generar("Read", in.nombre, TS[i].tipo, "");
+            return;
+        }
+        i++;
+    }
+
+
     /* Genera la instruccion para leer */
-    Generar("Read", in.nombre, "Entera", "");
+    /* Generar("Read", in.nombre, in.tipo, ""); */
 }
 void Escribir(REG_EXPRESION out)
 {
     /* Genera la instruccion para escribir */
-    Generar("Write", Extraer(&out), "Entera", "");
+    /*Generar("Write", Extraer(&out), out.tipo, "");*/
+
+    int i=0;
+    while(strcmp("$", TS[i].identifi)) {
+        if(strcmp(out.nombre, TS[i].identifi) == 0){
+            Generar("Write", out.nombre, TS[i].tipo, "");
+            return;
+        }
+        i++;
+    }
 }
 REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
 {
@@ -387,16 +515,17 @@ int Buscar(char *id, RegTS *TS, TOKEN *t)
     }
     return 0;
 }
-void Colocar(char *id, RegTS *TS)
+
+
+void ColocarConTipo(char *id, RegTS *TS, char *tipo)
 {
     /* Agrega un identificador a la TS */
-    int i = 4;
-    while (strcmp("$", TS[i].identifi))
-        i++;
-    if (i < 999)
-    {
+    int i = 0;
+    while (strcmp("$", TS[i].identifi)) i++;
+    if (i < 999) {
         strcpy(TS[i].identifi, id);
         TS[i].t = ID;
+        strcpy(TS[i].tipo, tipo);
         strcpy(TS[++i].identifi, "$");
     }
 }
@@ -407,9 +536,7 @@ void Chequear(char *s)
     TOKEN t;
     if (!Buscar(s, TS, &t))
     {
-
-        Colocar(s, TS);
-        Generar("Declara", s, "Entera", "");
+        printf("Error: variable %s no declarada\n", s);
     }
 }
 void Comenzar(void)
@@ -476,6 +603,10 @@ TOKEN scanner()
             ungetc(car, in);
             buffer[i - 1] = '\0';
         }
+        if (strchr(buffer, '.'))
+            return CONSTANTE_REAL;
+        if(buffer[0] == '\'' && buffer[strlen(buffer)-1] == '\'')
+            return CONSTANTE_CARACTER;
         return CONSTANTE;
     case 5:
         return SUMA;
@@ -530,6 +661,8 @@ int columna(int c)
         return 10;
     if (isspace(c))
         return 11;
+    if (c == '.' || c == '\'')
+        return 12;
     return 12;
 }
 /*************Fin Scanner**********************************************/

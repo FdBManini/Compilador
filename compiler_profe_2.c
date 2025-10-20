@@ -92,7 +92,7 @@ void ErrorSintactico();
 void Generar(char *co, char *a, char *b, char *c);
 char *Extraer(REG_EXPRESION *preg);
 int Buscar(char *id, RegTS *TS, TOKEN *t);
-void Colocar(char *id, RegTS *TS);
+// void Colocar(char *id, RegTS *TS);
 void Chequear(char *s);
 void Comenzar(void);
 void Terminar(void);
@@ -106,7 +106,7 @@ void ColocarConTipo(char *id, RegTS *TS, char *tipo);
 /***************************Programa Principal************************/
 int main(int argc, char *argv[])
 {
-    TOKEN tok;
+    // TOKEN tok;
     char nomArchi[TAMNOM];
     int l;
     /***************************Se abre el Archivo Fuente******************/
@@ -156,8 +156,8 @@ void Programa(void)
     /* <programa> -> #comenzar INICIO <listaSentencias> FIN */
     Comenzar(); // invocacion a las rutinas semanticas, en la gramatica se coloca con #
     Match(INICIO);
-    ListaSentencias();
     ListaDeclaraciones();
+    ListaSentencias();
     Match(FIN);
 }
 void ListaSentencias(void)
@@ -545,7 +545,9 @@ void Chequear(char *s)
     TOKEN t;
     if (!Buscar(s, TS, &t))
     {
-        printf("Error: variable %s no declarada\n", s);
+        ColocarConTipo(s,TS,buffer);
+        Generar("Declara", s, buffer, "");
+        // printf("Error: variable %s no declarada\n", s);
     }
 }
 void Comenzar(void)
@@ -596,7 +598,8 @@ TOKEN scanner(){
             i++;
         }
     } while (!estadoFinal(estado) && !(estado == RE));
-    buffer[i] = '\0';
+    buffer[i] = '\0'; //Para Cortar el string
+
     switch (estado)
     {
     case 2:
@@ -613,10 +616,9 @@ TOKEN scanner(){
             ungetc(car, in);
             buffer[i - 1] = '\0';
         }
-        if (strchr(buffer, '.'))
-            return CONSTANTE_REAL;
-        if(buffer[0] == '\'' && buffer[strlen(buffer)-1] == '\'')
-            return CONSTANTE_CARACTER;
+        if (strchr(buffer, '.')) return CONSTANTE_REAL;
+        if(buffer[0] == '\'' && buffer[strlen(buffer)-1] == '\'') return CONSTANTE_CARACTER;
+
         return CONSTANTE;
     case 5:
         return SUMA;

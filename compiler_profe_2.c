@@ -6,6 +6,8 @@
 #define NUMCOLS 13
 #define TAMLEX 32 + 1
 #define TAMNOM 20 + 1
+#define RE 14 // Estado Rechazado
+
 /******************Declaraciones Globales*************************/
 FILE *in;
 typedef enum
@@ -154,8 +156,8 @@ void Programa(void)
     /* <programa> -> #comenzar INICIO <listaSentencias> FIN */
     Comenzar(); // invocacion a las rutinas semanticas, en la gramatica se coloca con #
     Match(INICIO);
-    ListaDeclaraciones();
     ListaSentencias();
+    ListaDeclaraciones();
     Match(FIN);
 }
 void ListaSentencias(void)
@@ -277,6 +279,7 @@ void Declaracion() {
     Match(tipo);
     ListaIdentificadoresConTipo(tipoStr);
     Match(PUNTOYCOMA);
+    printf("Se declaro de tipo %s \n",tipoStr);
 }
 
 
@@ -560,23 +563,24 @@ void Asignar(REG_EXPRESION izq, REG_EXPRESION der)
     Generar("Almacena", Extraer(&der), izq.nombre, "");
 }
 /**************************Scanner************************************/
-TOKEN scanner()
-{
-    int tabla[NUMESTADOS][NUMCOLS] = {{1, 3, 5, 6, 7, 8, 9, 10, 11, 14, 13, 0, 14},
-                                      {1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 12, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
-                                      {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14}};
+TOKEN scanner(){
+    // L = es letra , D = es digito , EF = end of file Es = Espacio 
+    //                                  L  D  +  -  (  )  ,  ;  : =  EF Es '.
+    int tabla[NUMESTADOS][NUMCOLS] = {{ 1, 3, 5, 6, 7, 8, 9,10,11,RE,13, 0,RE},
+                                      { 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      { 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,12,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE},
+                                      {RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE,RE}};
     int car;
     int col;
     int estado = 0;
@@ -591,7 +595,7 @@ TOKEN scanner()
             buffer[i] = car;
             i++;
         }
-    } while (!estadoFinal(estado) && !(estado == 14));
+    } while (!estadoFinal(estado) && !(estado == RE));
     buffer[i] = '\0';
     switch (estado)
     {
@@ -630,7 +634,7 @@ TOKEN scanner()
         return ASIGNACION;
     case 13:
         return FDT;
-    case 14:
+    case RE:
         return ERRORLEXICO;
     }
     return 0;

@@ -95,6 +95,12 @@ void Chequear(char *s);
 void Comenzar(void);
 void Terminar(void);
 void Asignar(REG_EXPRESION izq, REG_EXPRESION der);
+void ListaIdentificadoresConTipo(char *tipo);
+void ListaDeclaraciones(void);
+void Declaracion(void);
+void ListaIdentificadoresConTipo(char *tipo);
+void ColocarConTipo(char *id, RegTS *TS, char *tipo);
+
 /***************************Programa Principal************************/
 int main(int argc, char *argv[])
 {
@@ -257,7 +263,7 @@ void ListaDeclaraciones(void) {
     }
 }
 
-void Declaracion(void) {
+void Declaracion() {
     TOKEN tipo = ProximoToken();
     char tipoStr[10];
 

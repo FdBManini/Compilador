@@ -1,3 +1,4 @@
 inicio 
-    si (A) entonces (b:=10) sino (b:=40)  finsi;
-fin
+    A := 5;
+    B := 10;
+    si (A) entonces (B) finsi; fin 

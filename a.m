@@ -1,1 +1,2 @@
-inicio  A:= BB -34 + A;fin
+inicio  A:= BB -34 + A;
+fin

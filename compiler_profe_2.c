@@ -88,7 +88,7 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2);
 void Match(TOKEN t);
 TOKEN ProximoToken();
 void ErrorLexico();
-void ErrorSintactico();
+void ErrorSintactico(TOKEN t);
 void Generar(char *co, char *a, char *b, char *c);
 char *Extraer(REG_EXPRESION *preg);
 int Buscar(char *id, RegTS *TS, TOKEN *t);
@@ -102,6 +102,9 @@ void ListaDeclaraciones(void);
 void Declaracion(void);
 void ListaIdentificadoresConTipo(char *tipo);
 void ColocarConTipo(char *id, RegTS *TS, char *tipo);
+
+char * token2String(TOKEN tok);
+void Condicion_a_Cumplir(TOKEN tok);
 
 /***************************Programa Principal************************/
 int main(int argc, char *argv[])
@@ -215,33 +218,62 @@ void Sentencia(void)
     case SI:
     /* <sentencia> -> SI <expresion> ENTONCES <listaSentencias> [SINO <listaSentencias>] FIN_SI */
         Match(SI);
+        Match(PARENIZQUIERDO);
         Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(SI);
+
         Match(ENTONCES);
-        ListaSentencias();
+        Match(PARENIZQUIERDO);
+        Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(ENTONCES);
+
         if(ProximoToken() == SINO){
             Match(SINO);
-            ListaSentencias();
+            Match(PARENIZQUIERDO);
+            Expresion(&der);
+            Match(PARENDERECHO);
+            Condicion_a_Cumplir(SINO);
         }
         Match(FIN_SI);
+        Match(PUNTOYCOMA);
         break;
 
 
     case MIENTRAS:
     /* <sentencia> -> MIENTRAS <expresion> HACER <listaSentencias> FIN_MIENTRAS */
         Match(MIENTRAS);
+        Match(PARENIZQUIERDO);
         Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(MIENTRAS);
+
         Match(HACER);
-        ListaSentencias();
+        Match(PARENIZQUIERDO);
+        Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(HACER);
+
         Match(FIN_MIENTRAS);
+        Match(PUNTOYCOMA);
         break;
 
 
     case REPETIR:
     /* <sentencia> -> REPETIR <listaSentencias> HASTA <expresion> ; */
         Match(REPETIR);
-        ListaSentencias();
-        Match(HASTA);
+        Match(PARENIZQUIERDO);
         Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(REPETIR);
+
+        Match(HASTA);
+        Match(PARENIZQUIERDO);
+        Expresion(&der);
+        Match(PARENDERECHO);
+        Condicion_a_Cumplir(HASTA);
+
         Match(PUNTOYCOMA);
         break;
     
@@ -273,7 +305,7 @@ void Declaracion() {
     else if(tipo == TIPO_REAL) strcpy(tipoStr, "Real");
     else if(tipo == TIPO_CARACTER) strcpy(tipoStr, "Caracter");
     else {
-        ErrorSintactico();
+        ErrorSintactico(tipo);
         return;
     }
     Match(tipo);
@@ -471,7 +503,7 @@ REG_EXPRESION GenInfijo(REG_EXPRESION e1, char *op, REG_EXPRESION e2)
 void Match(TOKEN t)
 {
     if (!(t == ProximoToken()))
-        ErrorSintactico();
+        ErrorSintactico(t);
     flagToken = 0;
 }
 TOKEN ProximoToken()
@@ -494,9 +526,9 @@ void ErrorLexico()
 {
     printf("Error Lexico\n");
 }
-void ErrorSintactico()
-{
-    printf("Error Sintactico\n");
+void ErrorSintactico(TOKEN t){
+    printf("Error Sintactico: ");
+    printf("El token %d '%s' no se ha reconocido\n",t,token2String(t));
 }
 void Generar(char *co, char *a, char *b, char *c)
 {
@@ -678,3 +710,30 @@ int columna(int c)
     return 12;
 }
 /*************Fin Scanner**********************************************/
+void Condicion_a_Cumplir(TOKEN tok){
+    printf("Condicion: %s \n",token2String(tok));
+};
+
+char * token2String(TOKEN tok){
+    for (int i = 0; i < 1000; i++){
+        if (TS[i].t == tok){
+           return TS[i].identifi;
+        }      
+    }
+    
+    switch (tok){
+        case ID: return "ID";
+        case CONSTANTE: return "Constante";
+        case SUMA: return "Suma";
+        case RESTA: return "Resta";
+        case PARENIZQUIERDO: return "(";
+        case PARENDERECHO: return ")";
+        case COMA: return ",";
+        case PUNTOYCOMA: return ";";
+        case ASIGNACION: return ":=";
+        case FDT: return "EOF";
+        case ERRORLEXICO: return "ERRORLEXI";
+    };     
+
+    return "No reconocido";  
+};

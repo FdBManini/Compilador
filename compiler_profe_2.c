@@ -710,11 +710,11 @@ int columna(int c)
     return 12;
 }
 /*************Fin Scanner**********************************************/
-void Condicion_a_Cumplir(TOKEN tok){
+void Condicion_a_Cumplir(TOKEN tok){ // Muestra que se genera una Condicion
     printf("Condicion: %s \n",token2String(tok));
 };
 
-char * token2String(TOKEN tok){
+char * token2String(TOKEN tok){ //Convierte los tokens a strings
     for (int i = 0; i < 1000; i++){
         if (TS[i].t == tok){
            return TS[i].identifi;
